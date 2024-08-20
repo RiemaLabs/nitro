@@ -62,6 +62,10 @@ func (m *mockMachine) ProveNextStep() []byte {
 func (m *mockMachine) Freeze()  {}
 func (m *mockMachine) Destroy() {}
 
+func (m *mockMachine) GetNextOpcode() uint16 {
+	panic("implement me")
+}
+
 func Test_machineHashesWithStep(t *testing.T) {
 	t.Run("basic argument checks", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
