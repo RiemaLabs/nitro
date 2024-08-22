@@ -69,6 +69,11 @@ func RecordPreimagesTo(preimages map[arbutil.PreimageType]map[common.Hash][]byte
 // which will retrieve the full batch data.
 const DASMessageHeaderFlag byte = 0x80
 
+// NubitMessageHeaderFlag indicates that this data is a Blob Pointer
+// which will be used to retrieve data from Nubit
+// 0xda is also used in other integration.
+const NubitMessageHeaderFlag byte = 0xda
+
 // TreeDASMessageHeaderFlag indicates that this DAS certificate data employs the new merkelization strategy.
 // Ignored when DASMessageHeaderFlag is not set.
 const TreeDASMessageHeaderFlag byte = 0x08
@@ -86,7 +91,7 @@ const BlobHashesHeaderFlag byte = L1AuthenticatedMessageHeaderFlag | 0x10 // 0x5
 const BrotliMessageHeaderByte byte = 0
 
 // KnownHeaderBits is all header bits with known meaning to this nitro version
-const KnownHeaderBits byte = DASMessageHeaderFlag | TreeDASMessageHeaderFlag | L1AuthenticatedMessageHeaderFlag | ZeroheavyMessageHeaderFlag | BlobHashesHeaderFlag | BrotliMessageHeaderByte
+const KnownHeaderBits byte = DASMessageHeaderFlag | NubitMessageHeaderFlag | TreeDASMessageHeaderFlag | L1AuthenticatedMessageHeaderFlag | ZeroheavyMessageHeaderFlag | BlobHashesHeaderFlag | BrotliMessageHeaderByte
 
 // hasBits returns true if `checking` has all `bits`
 func hasBits(checking byte, bits byte) bool {
@@ -111,6 +116,10 @@ func IsZeroheavyEncodedHeaderByte(header byte) bool {
 
 func IsBlobHashesHeaderByte(header byte) bool {
 	return hasBits(header, BlobHashesHeaderFlag)
+}
+
+func IsNubitMessageHeaderByte(header byte) bool {
+	return hasBits(header, NubitMessageHeaderFlag)
 }
 
 func IsBrotliMessageHeaderByte(b uint8) bool {

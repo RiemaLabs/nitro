@@ -105,6 +105,8 @@ func parseSequencerMessage(ctx context.Context, batchNum uint64, batchBlockHash 
 		if !foundDA {
 			if daprovider.IsDASMessageHeaderByte(payload[0]) {
 				log.Error("No DAS Reader configured, but sequencer message found with DAS header")
+			} else if daprovider.IsNubitMessageHeaderByte(payload[0]) {
+				log.Error("No Nubit Reader configured, but sequencer message found with Nubit header")
 			} else if daprovider.IsBlobHashesHeaderByte(payload[0]) {
 				return nil, daprovider.ErrNoBlobReader
 			}

@@ -34,6 +34,8 @@ import (
 	"github.com/offchainlabs/nitro/broadcaster"
 	"github.com/offchainlabs/nitro/cmd/chaininfo"
 	"github.com/offchainlabs/nitro/das"
+	"github.com/offchainlabs/nitro/das/nubit"
+	nTypes "github.com/offchainlabs/nitro/das/nubit/types"
 	"github.com/offchainlabs/nitro/execution"
 	"github.com/offchainlabs/nitro/execution/gethexec"
 	"github.com/offchainlabs/nitro/solgen/go/bridgegen"
@@ -93,6 +95,7 @@ type Config struct {
 	TransactionStreamer TransactionStreamerConfig   `koanf:"transaction-streamer" reload:"hot"`
 	Maintenance         MaintenanceConfig           `koanf:"maintenance" reload:"hot"`
 	ResourceMgmt        resourcemanager.Config      `koanf:"resource-mgmt" reload:"hot"`
+	Nubit               nubit.NubitConfig           `koanf:"nubit"`
 	// SnapSyncConfig is only used for testing purposes, these should not be configured in production.
 	SnapSyncTest SnapSyncConfig
 }
@@ -158,6 +161,7 @@ func ConfigAddOptions(prefix string, f *flag.FlagSet, feedInputEnable bool, feed
 	DangerousConfigAddOptions(prefix+".dangerous", f)
 	TransactionStreamerConfigAddOptions(prefix+".transaction-streamer", f)
 	MaintenanceConfigAddOptions(prefix+".maintenance", f)
+	nubit.NubitConfigAddOptions(prefix+".nubit", f)
 }
 
 var ConfigDefault = Config{
@@ -178,6 +182,7 @@ var ConfigDefault = Config{
 	ResourceMgmt:        resourcemanager.DefaultConfig,
 	Maintenance:         DefaultMaintenanceConfig,
 	SnapSyncTest:        DefaultSnapSyncConfig,
+	Nubit:               nubit.DefaultNubitConfig,
 }
 
 func ConfigDefaultL1Test() *Config {
@@ -524,6 +529,8 @@ func createNodeImpl(
 	var daReader das.DataAvailabilityServiceReader
 	var dasLifecycleManager *das.LifecycleManager
 	var dasKeysetFetcher *das.KeysetFetcher
+	var nubitReader nTypes.NubitBlobReader
+	var nubitWriter nTypes.NubitBlobWriter
 	if config.DataAvailability.Enable {
 		if config.BatchPoster.Enable {
 			daWriter, daReader, dasKeysetFetcher, dasLifecycleManager, err = das.CreateBatchPosterDAS(ctx, &config.DataAvailability, dataSigner, l1client, deployInfo.SequencerInbox)
@@ -549,6 +556,16 @@ func createNodeImpl(
 		return nil, errors.New("a data availability service is required for this chain, but it was not configured")
 	}
 
+	if config.Nubit.Enable {
+		nubitService, err := nubit.NewNuportClient(config.Nubit)
+		if err != nil {
+			return nil, err
+		}
+
+		nubitReader = nubitService
+		nubitWriter = nubitService
+	}
+
 	// We support a nil txStreamer for the pruning code
 	if txStreamer != nil && txStreamer.chainConfig.ArbitrumChainParams.DataAvailabilityCommittee && daReader == nil {
 		return nil, errors.New("data availability service required but unconfigured")
@@ -559,6 +576,9 @@ func createNodeImpl(
 	}
 	if blobReader != nil {
 		dapReaders = append(dapReaders, daprovider.NewReaderForBlobReader(blobReader))
+	}
+	if nubitReader != nil {
+		dapReaders = append(dapReaders, nTypes.NewReaderForNubit(nubitReader))
 	}
 	inboxTracker, err := NewInboxTracker(arbDb, txStreamer, dapReaders, config.SnapSyncTest)
 	if err != nil {
@@ -683,9 +703,23 @@ func createNodeImpl(
 		if txOptsBatchPoster == nil && config.BatchPoster.DataPoster.ExternalSigner.URL == "" {
 			return nil, errors.New("batchposter, but no TxOpts")
 		}
-		var dapWriter daprovider.Writer
-		if daWriter != nil {
-			dapWriter = daprovider.NewWriterForDAS(daWriter)
+		dapWriters := []daprovider.Writer{}
+		var dapWritersName = []string{"anytrust", "nubit"}
+		for _, providerName := range dapWritersName {
+			switch strings.ToLower(providerName) {
+			case "anytrust":
+				if daWriter != nil {
+					dapWriters = append(dapWriters, daprovider.NewWriterForDAS(daWriter))
+				}
+			case "nubit":
+				if nubitWriter != nil {
+					dapWriters = append(dapWriters, nTypes.NewWriterForNubit(nubitWriter))
+				}
+			}
+
+			if len(dapWriters) == 0 {
+				log.Warn("encountered nil daWriters", "daWriters", dapWritersName)
+			}
 		}
 		batchPoster, err = NewBatchPoster(ctx, &BatchPosterOpts{
 			DataPosterDB:  rawdb.NewTable(arbDb, storage.BatchPosterPrefix),
@@ -697,7 +731,7 @@ func createNodeImpl(
 			Config:        func() *BatchPosterConfig { return &configFetcher.Get().BatchPoster },
 			DeployInfo:    deployInfo,
 			TransactOpts:  txOptsBatchPoster,
-			DAPWriter:     dapWriter,
+			DAPWriters:    dapWriters,
 			ParentChainID: parentChainID,
 		})
 		if err != nil {

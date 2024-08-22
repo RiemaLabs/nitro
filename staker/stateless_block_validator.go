@@ -24,6 +24,7 @@ import (
 	"github.com/offchainlabs/nitro/validator"
 	"github.com/offchainlabs/nitro/validator/client/redis"
 
+	nTypes "github.com/offchainlabs/nitro/das/nubit/types"
 	validatorclient "github.com/offchainlabs/nitro/validator/client"
 )
 
@@ -286,6 +287,9 @@ func (v *StatelessBlockValidator) ValidationEntryRecord(ctx context.Context, e *
 		if !foundDA {
 			if daprovider.IsDASMessageHeaderByte(batch.Data[40]) {
 				log.Error("No DAS Reader configured, but sequencer message found with DAS header")
+				// 40 is the standard offset for the header byte.
+			} else if nTypes.IsNubitMessageHeaderByte(batch.Data[40]) {
+				log.Error("No Nubit Reader configured, but sequencer message found with Nubit header")
 			}
 		}
 	}

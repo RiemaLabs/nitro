@@ -32,6 +32,7 @@ import (
 	"github.com/offchainlabs/nitro/arbutil"
 	"github.com/offchainlabs/nitro/cmd/chaininfo"
 	"github.com/offchainlabs/nitro/das/dastree"
+	nTypes "github.com/offchainlabs/nitro/das/nubit/types"
 	"github.com/offchainlabs/nitro/gethhook"
 	"github.com/offchainlabs/nitro/wavmio"
 )
@@ -153,6 +154,130 @@ func (r *BlobPreimageReader) Initialize(ctx context.Context) error {
 	return nil
 }
 
+type PreimageNubitReader struct {
+}
+
+func (dasReader *PreimageNubitReader) Read(ctx context.Context, blobPointer *nTypes.BlobPointer) ([]byte, *nTypes.SquareData, error) {
+	// hash_oracle := func(hash common.Hash) ([]byte, error) {
+	// 	return wavmio.ResolveTypedPreimage(arbutil.Sha2_256PreimageType, hash)
+	// }
+
+	// kzg_oracle := func(hash common.Hash) ([]byte, error) {
+	// 	return wavmio.ResolveTypedPreimage(arbutil.EthVersionedHashPreimageType, hash)
+	// }
+
+	// if blobPointer.SharesLength == 0 {
+	// 	return nil, nil, fmt.Errorf("Error, shares length is %v", blobPointer.SharesLength)
+	// }
+	// // first, walk down the merkle tree, the data root is the root of the rowroot and columnroot trees.
+	// leaves, err := structures.MerkleTreeContent(hash_oracle, common.BytesToHash(blobPointer.DataRoot[:]))
+	// if err != nil {
+	// 	log.Warn("Error revealing contents behind data root", "err", err)
+	// 	return nil, nil, err
+	// }
+
+	// // Get the EDS size
+	// squareSize := uint64(len(leaves)) / 2
+
+	// // Split leaves in half to get row roots
+	// rowRoots := leaves[:squareSize]
+
+	// // We get the original data square size, which is (size_of_the_extended_square / 2)
+	// odsSize := squareSize / 2
+
+	// startRow := blobPointer.Start / odsSize
+
+	// if blobPointer.Start > odsSize*odsSize && odsSize > 1 {
+	// 	return nil, nil, fmt.Errorf("Error Start Index out of ODS bounds: index=%v odsSize=%v", blobPointer.Start, odsSize)
+	// }
+
+	// // adjusted_end_index = adjusted_start_index + length - 1
+	// if blobPointer.Start+blobPointer.SharesLength < 1 {
+	// 	return nil, nil, fmt.Errorf("Error getting number of shares in first row: index+length %v > 1", blobPointer.Start+blobPointer.SharesLength)
+	// }
+
+	// endIndexOds := blobPointer.Start + blobPointer.SharesLength - 1
+
+	// if endIndexOds > odsSize*odsSize && odsSize > 1 {
+	// 	return nil, nil, fmt.Errorf("Error End Index out of ODS bounds: index=%v odsSize=%v", endIndexOds, odsSize)
+	// }
+	// endRow := endIndexOds / odsSize
+
+	// if endRow >= odsSize || startRow >= odsSize {
+	// 	return nil, nil, fmt.Errorf("Error rows out of bounds: startRow=%v endRow=%v odsSize=%v", startRow, endRow, odsSize)
+	// }
+
+	// startColumn := blobPointer.Start % odsSize
+	// endColumn := endIndexOds % odsSize
+
+	// if startRow == endRow && startColumn > endColumn {
+	// 	log.Error("start and end row are the same, and startColumn >= endColumn", "startColumn", startColumn, "endColumn ", endColumn)
+	// 	return []byte{}, nil, nil
+	// }
+
+	// // adjust the math in the NubitPayload function in the inbox
+
+	// // we can take ods * ods -> end index in ods
+	// // then we check that start index is in bounds, otherwise ignore -> return empty batch
+	// // then we check that end index is in bounds, otherwise ignore
+
+	// // get rows behind row root and shares for our blob
+	// rows := [][][]byte{}
+	// shares := [][]byte{}
+	// for i := startRow; i <= endRow; i++ {
+	// 	row, err := structures.KzgContent(kzg_oracle, rowRoots[i])
+	// 	if err != nil {
+	// 		return nil, nil, err
+	// 	}
+	// 	rows = append(rows, row)
+
+	// 	odsRow := row[:odsSize]
+
+	// 	// TODO explain the logic behind this branching
+	// 	if startRow == endRow {
+	// 		shares = append(shares, odsRow[startColumn:endColumn+1]...)
+	// 		break
+	// 	} else if i == startRow {
+	// 		shares = append(shares, odsRow[startColumn:]...)
+	// 	} else if i == endRow {
+	// 		shares = append(shares, odsRow[:endColumn+1]...)
+	// 	} else {
+	// 		shares = append(shares, odsRow...)
+	// 	}
+	// }
+
+	// data := []byte{}
+	// if structures.NamespaceSize*2+1 > uint64(len(shares[0])) || structures.NamespaceSize*2+5 > uint64(len(shares[0])) {
+	// 	return nil, nil, fmt.Errorf("Error getting sequence length on share of size %v", len(shares[0]))
+	// }
+	// sequenceLength := binary.BigEndian.Uint32(shares[0][structures.NamespaceSize*2+1 : structures.NamespaceSize*2+5])
+	// for i, share := range shares {
+	// 	// trim extra namespace
+	// 	share := share[structures.NamespaceSize:]
+	// 	if i == 0 {
+	// 		data = append(data, share[structures.NamespaceSize+5:]...)
+	// 		continue
+	// 	}
+	// 	data = append(data, share[structures.NamespaceSize+1:]...)
+	// }
+
+	// data = data[:sequenceLength]
+	// squareData := nTypes.SquareData{
+	// 	RowRoots:    rowRoots,
+	// 	ColumnRoots: leaves[squareSize:],
+	// 	Rows:        rows,
+	// 	SquareSize:  squareSize,
+	// 	StartRow:    startRow,
+	// 	EndRow:      endRow,
+	// }
+	// return data, &squareData, nil
+	return []byte{}, nil, nil
+}
+
+func (dasReader *PreimageNubitReader) GetProof(ctx context.Context, msg []byte) ([]byte, error) {
+	return nil, nil
+}
+
 // To generate:
 // key, _ := crypto.HexToECDSA("0000000000000000000000000000000000000000000000000000000000000001")
 // sig, _ := crypto.Sign(make([]byte, 32), key)
@@ -203,6 +328,7 @@ func main() {
 		panic(fmt.Sprintf("Error opening state db: %v", err.Error()))
 	}
 
+	// TODO(Hongbo): Modify the readMessage function to adopt the Nubit dapReader.
 	readMessage := func(dasEnabled bool) *arbostypes.MessageWithMetadata {
 		var delayedMessagesRead uint64
 		if lastBlockHeader != nil {
